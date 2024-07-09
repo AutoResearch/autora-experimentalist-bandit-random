@@ -1,7 +1,7 @@
 [project]
 # UPDATE THIS BEFORE PUBLISHING
 name = "bandit-random"
-description = "Create a sequence of proabilities usind iniitial probabilty and drift (for example for a bandit task)"
+description = "Create a sequence of bandit task rewards using iniitial reward probabilty and drift"
 authors = [{ name = "Younes Strittmatter", email = "ystrittm@gmail.com" }]
 dynamic = ["version"]
 

@@ -1,4 +1,4 @@
-# probability-sequence-random
+# bandit-random
 
 Explain what your contribution is doing here
 

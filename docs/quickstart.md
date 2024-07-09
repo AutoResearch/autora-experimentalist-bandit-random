@@ -7,11 +7,11 @@ You will need:
 *probability-sequence-random is a part of the `autora` package:
 
 ```shell
-pip install -U autora["experimentalist-probability-sequence-random"]
+pip install -U autora["experimentalist-bandit-random"]
 ```
 
 
 Check your installation by running:
 ```shell
-python -c "from autora.experimentalist.probability_sequence_random import Example"
+python -c "from autora.experimentalist.bandit_random import Example"
 ```

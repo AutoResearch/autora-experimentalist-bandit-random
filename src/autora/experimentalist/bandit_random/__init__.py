@@ -1,23 +1,24 @@
 """
-Example Experimentalist
+Experimentalist that returns
+probability sequences: Sequences of vectors with elements between 0 and 1
+or
+reward sequences: Sequences of vectors with binary elements
 """
-import random
 
 import numpy as np
-import pandas as pd
 
-from typing import Union, List, Iterable, Optional, Tuple
+from typing import Union, List, Optional
 from collections.abc import Iterable
 
 
 def pool_proba(
         num_probabilities: int,
         sequence_length: int,
-        initial_probabilities: Optional[Iterable[Tuple[Union[float, Tuple]]]] = None,
-        drift_rates: Optional[Iterable[Tuple[Union[float, Tuple]]]] = None,
+        initial_probabilities: Optional[Iterable[Union[float, Iterable]]] = None,
+        drift_rates: Optional[Iterable[Union[float, Iterable]]] = None,
         num_samples: int = 1,
         random_state: Optional[int] = None,
-) -> List[List[float]]:
+) -> List[List[List[float]]]:
     """
     Returns a list of probability sequences.
     A probability sequence is a sequence of vectors of dimension `num_probabilities`. Each entry
@@ -110,9 +111,9 @@ def pool_proba(
 
 
 def pool_from_proba(
-        probability_sequence: List[List[float]],
+        probability_sequence: Iterable,
         random_state: Optional[int] = None,
-):
+) -> List[List[List[float]]]:
     """
     From a given probability sequence sample rewards (0 or 1)
 
@@ -132,11 +133,11 @@ def pool_from_proba(
 def pool(
         num_rewards: int,
         sequence_length: int,
-        initial_probabilities: Optional[Iterable[Tuple[Union[float, Tuple]]]] = None,
-        drift_rates: Optional[Iterable[Tuple[Union[float, Tuple]]]] = None,
+        initial_probabilities: Optional[Iterable[Union[float, Iterable]]] = None,
+        drift_rates: Optional[Iterable[Union[float, Iterable]]] = None,
         num_samples: int = 1,
         random_state: Optional[int] = None,
-) -> pd.DataFrame:
+) -> List[List[List[float]]]:
     """
     Returns a list of rewards.
     A reward sequence is a sequence of vectors of dimension `num_probabilities`. Each entry
@@ -205,7 +206,18 @@ def pool(
     return pool_from_proba(_sequence, random_state)
 
 
+bandit_random_pool_proba = pool_proba
+bandit_random_pool_from_proba = pool_from_proba
+bandit_random_pool = pool
+
+
+# Helper functions
+
 def _sample_from_probabilities(prob_list, rng):
+    """
+    Helper function to sample values from a probability sequence
+    """
+
     def sample_element(prob):
         return int(rng.choice([0, 1], p=[1 - prob, prob]))
 
@@ -219,8 +231,14 @@ def _sample_from_probabilities(prob_list, rng):
 
 
 def _is_iterable(obj):
+    """
+    Helper function that returns true if an object is iterable
+    """
     return isinstance(obj, Iterable)
 
 
 def _transpose_matrix(matrix):
+    """
+    Helper function to transpose a list of lists.
+    """
     return [list(row) for row in zip(*matrix)]

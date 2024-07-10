@@ -15,7 +15,7 @@ def pool_proba(
         num_probabilities: int,
         sequence_length: int,
         initial_probabilities: Optional[Iterable[Union[float, Iterable]]] = None,
-        drift_rates: Optional[Iterable[Union[float, Iterable]]] = None,
+        sigmas: Optional[Iterable[Union[float, Iterable]]] = None,
         num_samples: int = 1,
         random_state: Optional[int] = None,
 ) -> List[List[List[float]]]:
@@ -32,8 +32,8 @@ def pool_proba(
         sequence_length: The length of the sequence
         initial_probabilities: A list of initial values for each element of the probalities. Each
         entry can be a range.
-        drift_rates: A list of constant drift rate for each element of the probabilites. Each
-        entry can be a range. The drift rate is defined as change per step
+        sigmas: A list of sigma of the normal distribution for the drift rate of each arm. Each
+            entry can be a range to be sampled from. The drift rate is defined as change per step
         num_samples: number of experimental conditions to select
         random_state: the seed value for the random number generator
     Returns:
@@ -42,67 +42,68 @@ def pool_proba(
     Examples:
         We create a reward probabilty sequence for five two arm bandit tasks. The reward
         probabilities for each arm should be .5 and constant.
-        >>> pool_proba(num_probabilities=2, sequence_length=3, num_samples=1)
+        >>> pool_proba(num_probabilities=2, sequence_length=3, num_samples=1, random_state=42)
         [[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]]
 
         If we want more arms:
-        >>> pool_proba(num_probabilities=4, sequence_length=3, num_samples=1)
+        >>> pool_proba(num_probabilities=4, sequence_length=3, num_samples=1, random_state=42)
         [[[0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]]]
 
         longer sequence:
-        >>> pool_proba(num_probabilities=2, sequence_length=5, num_samples=1)
+        >>> pool_proba(num_probabilities=2, sequence_length=5, num_samples=1, random_state=42)
         [[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]]
 
         more sequences:
-        >>> pool_proba(num_probabilities=2, sequence_length=3, num_samples=2)
+        >>> pool_proba(num_probabilities=2, sequence_length=3, num_samples=2, random_state=42)
         [[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]], [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]]
 
         We  can set fixed initial values:
         >>> pool_proba(num_probabilities=2, sequence_length=3,
-        ...     initial_probabilities=[0.,.4])
+        ...     initial_probabilities=[0.,.4], random_state=42)
         [[[0.0, 0.4], [0.0, 0.4], [0.0, 0.4]]]
 
         And drift rates:
         >>> pool_proba(num_probabilities=2, sequence_length=3,
         ...     initial_probabilities=[0.,.4],
-        ...     drift_rates=[.2, -.2])
-        [[[0.0, 0.4], [0.2, 0.2], [0.4, 0.0]]]
+        ...     sigmas=[.1, .5], random_state=42)
+        [[[0.0, 0.4], [0.030471707975443137, 0.7752255979032286], [0.0, 1.0]]]
         
         We can also sample the initial values by passing a range:
         >>> pool_proba(num_probabilities=2, sequence_length=3,
         ...     initial_probabilities=[[0, .2],[.8, 1.]],
-        ...     drift_rates=[[0, .2], [-.2, 0.]],
+        ...     sigmas=[[0., .25], [0., .5]],
         ...     random_state=42)
-        [[[0.15479120971119267, 0.9717195839822765], \
-[0.24256689766160314, 0.9111931897941493], \
-[0.3303425856120136, 0.8506667956060221]]]
+        [[[0.15479120971119267, 0.81883546957753], \
+[0.23713042219259264, 0.8811974469636589], \
+[0.34032881599649456, 0.7269307761486841]]]
     """
     rng = np.random.default_rng(random_state)
     if initial_probabilities:
         assert len(initial_probabilities) == num_probabilities
     else:
         initial_probabilities = [.5 for _ in range(num_probabilities)]
-    if drift_rates:
-        assert len(drift_rates) == num_probabilities
+    if sigmas:
+        assert len(sigmas) == num_probabilities
     else:
-        drift_rates = [0 for _ in range(num_probabilities)]
+        sigmas = [0 for _ in range(num_probabilities)]
     res = []
     for _ in range(num_samples):
         seq = []
         for idx, el in enumerate(initial_probabilities):
-            prob = []
+
             if _is_iterable(el):
                 start = rng.uniform(el[0], el[1])
             else:
                 start = el
-            if _is_iterable(drift_rates[idx]):
-                drift = rng.uniform(drift_rates[idx][0], drift_rates[idx][1])
+            if _is_iterable(sigmas[idx]):
+                sigma = rng.uniform(sigmas[idx][0], sigmas[idx][1])
             else:
-                drift = drift_rates[idx]
-            for _ in range(sequence_length):
-                prob.append(start)
-                start += drift
+                sigma = sigmas[idx]
+            prob = [start]
+            for _ in range(sequence_length - 1):
+                start += rng.normal(loc=0, scale=sigma)
                 start = max(0., min(start, 1.))
+                prob.append(start)
             seq.append(prob)
         res.append(seq)
     for idx in range(len(res)):
@@ -119,10 +120,11 @@ def pool_from_proba(
 
     Example:
         >>> proba_sequence = pool_proba(num_probabilities=2, sequence_length=3,
-        ...     initial_probabilities=[0.,1.],
-        ...     drift_rates=[.15, -.15])
+        ...     initial_probabilities=[.2,.8],
+        ...     sigmas=[.2, .1], random_state=42)
         >>> proba_sequence
-        [[[0.0, 1.0], [0.15, 0.85], [0.3, 0.7]]]
+        [[[0.2, 0.8], [0.26094341595088627, 0.8750451195806458], \
+[0.05294659470278715, 0.9691015912197671]]]
         >>> pool_from_proba(proba_sequence, 42)
         [[[0, 1], [1, 1], [0, 1]]]
     """
@@ -134,7 +136,7 @@ def pool(
         num_rewards: int,
         sequence_length: int,
         initial_probabilities: Optional[Iterable[Union[float, Iterable]]] = None,
-        drift_rates: Optional[Iterable[Union[float, Iterable]]] = None,
+        sigmas: Optional[Iterable[Union[float, Iterable]]] = None,
         num_samples: int = 1,
         random_state: Optional[int] = None,
 ) -> List[List[List[float]]]:
@@ -152,7 +154,7 @@ def pool(
         sequence_length: The length of the sequence
         initial_probabilities: A list of initial reward-probabilities. Each
         entry can be a range.
-        drift_rates: A list of constant drift rate for each element of the probabilites. Each
+        sigmas: A list of constant drift rate for each element of the probabilites. Each
         entry can be a range. The drift rate is defined as change per step
         num_samples: number of experimental conditions to select
         random_state: the seed value for the random number generator
@@ -186,21 +188,21 @@ def pool(
         And drift rates:
         >>> pool(num_rewards=2, sequence_length=3,
         ...     initial_probabilities=[0.,.4],
-        ...     drift_rates=[.2, -.2],
+        ...     sigmas=[.2, .3],
         ...     random_state=42)
-        [[[0, 0], [1, 0], [0, 0]]]
+        [[[0, 0], [0, 1], [0, 1]]]
 
         We can also sample the initial values by passing a range:
         >>> pool(num_rewards=2, sequence_length=3,
         ...     initial_probabilities=[[0, .2],[.8, 1.]],
-        ...     drift_rates=[[0., .2], [-.2, 0.]],
+        ...     sigmas=[[0., .2], [0., .3]],
         ...     random_state=42)
         [[[0, 1], [1, 1], [0, 1]]]
     """
     _sequence = pool_proba(num_rewards,
                            sequence_length,
                            initial_probabilities,
-                           drift_rates,
+                           sigmas,
                            num_samples,
                            random_state)
     return pool_from_proba(_sequence, random_state)

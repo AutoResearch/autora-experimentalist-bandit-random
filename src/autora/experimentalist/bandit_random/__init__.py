@@ -129,7 +129,9 @@ def pool_from_proba(
         [[[0, 1], [1, 1], [0, 1]]]
     """
     rng = np.random.default_rng(random_state)
-    return _sample_from_probabilities(probability_sequence, rng)
+    probability_sequence_array = _sample_from_probabilities(probability_sequence, rng)
+    probability_sequence_lst = [el for el in probability_sequence_array]
+    return probability_sequence_lst
 
 
 def pool(
@@ -229,7 +231,7 @@ def _sample_from_probabilities(prob_list, rng):
         else:
             return sample_element(nested_list)
 
-    return recursive_sample(prob_list)
+    return np.array(recursive_sample(prob_list))
 
 
 def _is_iterable(obj):
